@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
 )
 
 type ApiClient struct {
@@ -18,6 +15,7 @@ const urlRoot = "https://hanetwi.ddns.net/bikeshare/api/v1/"
 const urlGetPlaces = urlRoot + "places?"
 const urlGetCounts = urlRoot + "counts?"
 const urlGetDistances = urlRoot + "distances?"
+const urlGetAllPlaces = urlRoot + "all_places"
 
 //NewApiClient コンストラクタ
 func NewApiClient() ApiClient {
@@ -27,47 +25,86 @@ func NewApiClient() ApiClient {
 }
 
 //GetPlaces 駐輪場検索
-func (api ApiClient) GetPlaces(option SearchPlacesOption) (JPlacesBody, error) {
-	//リクエストBody作成
-	values := url.Values{}
-	values.Set("area", option.Area)
-	values.Set("spot", option.Spot)
-	values.Set("q", option.Query)
-
-	req, err := http.NewRequest(
-		"GET",
-		urlGetPlaces,
-		strings.NewReader(values.Encode()),
-	)
+func (api ApiClient) GetPlaces(option SearchPlacesOption) ([]SpotInfo, error) {
+	url := urlGetPlaces + option.GetQuery()
+	resp, err := api.Client.Get(url)
 	if err != nil {
-		return JPlacesBody{}, err
-	}
-	// リクエストHead作成
-	ContentLength := strconv.FormatInt(req.ContentLength, 10)
-	req.Header.Set("Content-Length", ContentLength)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := api.Client.Do(req)
-	if err != nil {
-		return JPlacesBody{}, err
+		return []SpotInfo{}, err
 	}
 	defer resp.Body.Close()
+
 	byteArray, _ := ioutil.ReadAll(resp.Body)
-
-	jsonBytes := ([]byte)(byteArray)
 	var data JPlacesBody
-	if err := json.Unmarshal(jsonBytes, data); err != nil {
+	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
 		fmt.Println("JSON Unmarshal error:", err)
-		return JPlacesBody{}, err
+		return []SpotInfo{}, err
 	}
-
-	return data, nil
+	return data.GetSpotInfoList(), nil
 }
 
-func test() {
-	api := NewApiClient()
-	api.GetPlaces(struct {
-		Area  string
-		Spot  string
-		Query string
-	}{Area: "D1"})
+//GetCounts 台数検索
+func (api ApiClient) GetCounts(option SearchCountsOption) (SpotInfo, error) {
+	url := urlGetCounts + option.GetQuery()
+	resp, err := api.Client.Get(url)
+	if err != nil {
+		return SpotInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	byteArray, _ := ioutil.ReadAll(resp.Body)
+	var data JCountsBody
+	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
+		fmt.Println("JSON Unmarshal error:", err)
+		return SpotInfo{}, err
+	}
+	return data.GetSpotInfo(), nil
+}
+
+//GetDistances 近いスポット検索
+func (api ApiClient) GetDistances(option SearchDistanceOption) (DistanceInfo, error) {
+	url := urlGetDistances + option.GetQuery()
+	resp, err := api.Client.Get(url)
+	if err != nil {
+		return DistanceInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	byteArray, _ := ioutil.ReadAll(resp.Body)
+	var data JDistancesBody
+	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
+		fmt.Println("JSON Unmarshal error:", err)
+		return DistanceInfo{}, err
+	}
+	spotinfoList := data.GetSpotInfoList()
+	distanceInfo := DistanceInfo{BaseLat: option.Lat, BaseLon: option.Lon}
+	distances := data.GetDistanceList()
+	for i, item := range spotinfoList {
+		distanceInfo.Spots = append(distanceInfo.Spots, struct {
+			SpotInfo SpotInfo
+			Distance string
+		}{SpotInfo: item, Distance: distances[i]})
+	}
+	return distanceInfo, nil
+}
+
+//GetAllSpotNames すべてのスポットの名前だけ検索
+func (api ApiClient) GetAllSpotNames() ([]SpotName, error) {
+	resp, err := api.Client.Get(urlGetAllPlaces)
+	if err != nil {
+		return []SpotName{}, err
+	}
+	defer resp.Body.Close()
+
+	byteArray, _ := ioutil.ReadAll(resp.Body)
+	var data JAllPlacesBody
+	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
+		fmt.Println("JSON Unmarshal error:", err)
+		return []SpotName{}, err
+	}
+
+	var names []SpotName
+	for _, item := range data.Items {
+		names = append(names, SpotName{Area: item.Area, Spot: item.Spot, Name: item.Name})
+	}
+	return names, nil
 }
