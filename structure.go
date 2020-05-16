@@ -154,6 +154,14 @@ type JAllPlacesBody struct {
 	} `json:"items"`
 }
 
+//JGraphResponse Graphリクエストの返信用
+type JGraphResponse struct {
+	Title  string `json:"title"`
+	Width  string `json:"width"`
+	Height string `json:"height"`
+	URL    string `json:"url"`
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 //   共通構造体
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -196,6 +204,14 @@ type DistanceInfo struct {
 //SpotName 駐輪場の名前
 type SpotName struct {
 	Area, Spot, Name string
+}
+
+//GraphInfo グラフ画像の情報
+type GraphInfo struct {
+	Title  string
+	Width  int
+	Height int
+	URL    string `json:"url"`
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -263,6 +279,43 @@ func (option SearchDistanceOption) GetQuery() string {
 	if option.Lon != 0 {
 		param := fmt.Sprintf("lon=%v", option.Lon)
 		params = append(params, param)
+	}
+	return strings.Join(params, `&`)
+}
+
+//SearchGraphOption グラフ検索
+type SearchGraphOption struct {
+	Area, Spot  string
+	Property    string
+	Days        []string
+	DrawTitle   bool
+	UploadImgur bool
+}
+
+//GetQuery 検索条件作成
+func (option SearchGraphOption) GetQuery() string {
+	var params []string
+	if option.Area != "" {
+		param := fmt.Sprintf("area=%s", option.Area)
+		params = append(params, param)
+	}
+	if option.Spot != "" {
+		param := fmt.Sprintf("spot=%s", option.Spot)
+		params = append(params, param)
+	}
+	if option.Property != "" {
+		param := fmt.Sprintf("property=%s", option.Property)
+		params = append(params, param)
+	}
+	if len(option.Days) > 0 {
+		param := fmt.Sprintf("days=%s", strings.Join(option.Days, `,`))
+		params = append(params, param)
+	}
+	if option.DrawTitle {
+		params = append(params, "title=yes")
+	}
+	if option.UploadImgur {
+		params = append(params, "imgur=yes")
 	}
 	return strings.Join(params, `&`)
 }

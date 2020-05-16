@@ -49,8 +49,23 @@ func GetAllSpotNames() {
 	fmt.Printf("%v\n", names)
 }
 
+//GetGraph 千代田区役所
+func GetGraph() {
+	option := bikeshareapi.SearchGraphOption{
+		Area:      "A1",
+		Spot:      "01",
+		DrawTitle: true,
+	}
+	graph, err := API.GetGraph(option)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return
+	}
+	fmt.Printf("%v\n", graph)
+}
+
 func main() {
 	//APIクライアント初期化
 	API = bikeshareapi.NewApiClient()
-	GetAllSpotNames()
+	GetGraph()
 }
