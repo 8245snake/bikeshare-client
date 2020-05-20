@@ -13,8 +13,7 @@ var API bikeshareapi.ApiClient
 func GetPlaces() {
 	spots, err := API.GetPlaces(bikeshareapi.SearchPlacesOption{Area: "D1"})
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		return
+		panic(err)
 	}
 	fmt.Printf("%v\n", spots)
 }
@@ -23,8 +22,7 @@ func GetPlaces() {
 func GetCounts() {
 	counts, err := API.GetCounts(bikeshareapi.SearchCountsOption{Area: "A1", Spot: "01", Day: "20200505"})
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		return
+		panic(err)
 	}
 	fmt.Printf("%v\n", counts)
 }
@@ -33,8 +31,7 @@ func GetCounts() {
 func GetDistances() {
 	distances, err := API.GetDistances(bikeshareapi.SearchDistanceOption{Lat: 35.689274, Lon: 139.700646})
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		return
+		panic(err)
 	}
 	fmt.Printf("%v\n", distances)
 }
@@ -43,8 +40,7 @@ func GetDistances() {
 func GetAllSpotNames() {
 	names, err := API.GetAllSpotNames()
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		return
+		panic(err)
 	}
 	fmt.Printf("%v\n", names)
 }
@@ -58,14 +54,27 @@ func GetGraph() {
 	}
 	graph, err := API.GetGraph(option)
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		return
+		panic(err)
 	}
 	fmt.Printf("%v\n", graph)
+}
+
+//GetUsers 千代田区役所
+func GetUsers() {
+	users, err := API.GetUsers()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%v\n", users)
 }
 
 func main() {
 	//APIクライアント初期化
 	API = bikeshareapi.NewApiClient()
+	GetPlaces()
+	GetAllSpotNames()
+	GetCounts()
+	GetDistances()
 	GetGraph()
+	GetUsers()
 }

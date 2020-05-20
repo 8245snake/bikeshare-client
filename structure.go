@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/8245snake/bikeshare_api/src/lib/static"
 )
 
 //JsonTimeLayout 時刻フォーマット
@@ -14,27 +16,8 @@ const JsonTimeLayout = "2006/01/02 15:04"
 //  JSONマーシャリング構造体
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//JCountsBody JSONマーシャリング用
-type JCountsBody struct {
-	Area        string `json:"area"`
-	Spot        string `json:"spot"`
-	Description string `json:"description"`
-	Lat         string `json:"lat"`
-	Lon         string `json:"lon"`
-	Name        string `json:"name"`
-	Counts      []struct {
-		Count    string `json:"count"`
-		Datetime string `json:"datetime"`
-		Day      string `json:"day"`
-		Hour     string `json:"hour"`
-		Minute   string `json:"minute"`
-		Month    string `json:"month"`
-		Year     string `json:"year"`
-	} `json:"counts"`
-}
-
-//GetSpotInfo GetSpotInfo構造体を返す
-func (body JCountsBody) GetSpotInfo() SpotInfo {
+//GetSpotInfoByJCount GetSpotInfo構造体を返す
+func GetSpotInfoByJCount(body static.JCountsBody) SpotInfo {
 	var spotinfo SpotInfo
 	spotinfo.Area = body.Area
 	spotinfo.Spot = body.Spot
@@ -54,22 +37,8 @@ func (body JCountsBody) GetSpotInfo() SpotInfo {
 	return spotinfo
 }
 
-//JPlacesBody JSONマーシャリング用
-type JPlacesBody struct {
-	Num   int `json:"num"`
-	Items []struct {
-		Area        string `json:"area"`
-		Spot        string `json:"spot"`
-		Description string `json:"description"`
-		Lat         string `json:"lat"`
-		Lon         string `json:"lon"`
-		Name        string `json:"name"`
-		Recent      Recent `json:"recent"`
-	} `json:"items"`
-}
-
-//GetSpotInfoList GetSpotInfo構造体を返す
-func (body JPlacesBody) GetSpotInfoList() []SpotInfo {
+//GetSpotInfoListByPlaces GetSpotInfo構造体を返す
+func GetSpotInfoListByPlaces(body static.JPlacesBody) []SpotInfo {
 	var spotinfoList []SpotInfo
 	for _, item := range body.Items {
 		var spotinfo SpotInfo
@@ -91,29 +60,8 @@ func (body JPlacesBody) GetSpotInfoList() []SpotInfo {
 	return spotinfoList
 }
 
-//Recent 最新の台数情報を格納する
-type Recent struct {
-	Count    string `json:"count"`
-	Datetime string `json:"datetime"`
-}
-
-//JDistancesBody JSONマーシャリング用
-type JDistancesBody struct {
-	Num   int `json:"num"`
-	Items []struct {
-		Area        string `json:"area"`
-		Spot        string `json:"spot"`
-		Description string `json:"description"`
-		Lat         string `json:"lat"`
-		Lon         string `json:"lon"`
-		Name        string `json:"name"`
-		Distance    string `json:"distance"`
-		Recent      Recent `json:"recent"`
-	} `json:"items"`
-}
-
-//GetSpotInfoList GetSpotInfo構造体を返す
-func (body JDistancesBody) GetSpotInfoList() []SpotInfo {
+//GetSpotInfoListByDistance GetSpotInfo構造体を返す
+func GetSpotInfoListByDistance(body static.JDistancesBody) []SpotInfo {
 	var spotinfoList []SpotInfo
 	for _, item := range body.Items {
 		var spotinfo SpotInfo
@@ -136,7 +84,7 @@ func (body JDistancesBody) GetSpotInfoList() []SpotInfo {
 }
 
 //GetDistanceList GetSpotInfo構造体を返す
-func (body JDistancesBody) GetDistanceList() []string {
+func GetDistanceList(body static.JDistancesBody) []string {
 	var distances []string
 	for _, item := range body.Items {
 		distances = append(distances, item.Distance)
@@ -144,22 +92,31 @@ func (body JDistancesBody) GetDistanceList() []string {
 	return distances
 }
 
-//JAllPlacesBody JSONマーシャリング用
-type JAllPlacesBody struct {
-	Num   int `json:"num"`
-	Items []struct {
-		Area string `json:"area"`
-		Spot string `json:"spot"`
-		Name string `json:"name"`
-	} `json:"items"`
-}
+//GetGraphInfoByJGraphResponse GetSpotInfo構造体を返す
+func GetGraphInfoByJGraphResponse(body static.JGraphResponse) GraphInfo {
+	var graphInfo GraphInfo
+	graphInfo.Height = body.Height
+	graphInfo.Width = body.Width
+	graphInfo.URL = body.URL
+	graphInfo.Title = body.Title
 
-//JGraphResponse Graphリクエストの返信用
-type JGraphResponse struct {
-	Title  string `json:"title"`
-	Width  string `json:"width"`
-	Height string `json:"height"`
-	URL    string `json:"url"`
+	var spotinfo SpotInfo
+	spotinfo.Area = body.Item.Area
+	spotinfo.Spot = body.Item.Spot
+	spotinfo.Name = body.Item.Name
+	spotinfo.Description = body.Item.Description
+	if lat, err := strconv.ParseFloat(body.Item.Lat, 64); err == nil {
+		spotinfo.Lat = lat
+	}
+	if lon, err := strconv.ParseFloat(body.Item.Lon, 64); err == nil {
+		spotinfo.Lon = lon
+	}
+	if s, err := NewBikeCount(body.Item.Recent.Datetime, body.Item.Recent.Count); err == nil {
+		spotinfo.Counts = append(spotinfo.Counts, s)
+	}
+	graphInfo.SpotInfo = spotinfo
+
+	return graphInfo
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -208,10 +165,20 @@ type SpotName struct {
 
 //GraphInfo グラフ画像の情報
 type GraphInfo struct {
-	Title  string
-	Width  int
-	Height int
-	URL    string `json:"url"`
+	Title    string
+	Width    string
+	Height   string
+	URL      string
+	SpotInfo SpotInfo
+}
+
+//Users ユーザ情報
+type Users struct {
+	LineID    string
+	SlackID   string
+	Favorites []string
+	Notifies  []string
+	Histories []string
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////

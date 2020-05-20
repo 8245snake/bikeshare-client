@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
+
+	"github.com/8245snake/bikeshare_api/src/lib/static"
 )
 
+//ApiClient クライアント
 type ApiClient struct {
-	Client *http.Client
+	Client  *http.Client
+	CertKey string
 }
 
 const (
@@ -18,6 +21,7 @@ const (
 	urlGetCounts    = urlRoot + "counts?"
 	urlGetDistances = urlRoot + "distances?"
 	urlGetAllPlaces = urlRoot + "all_places"
+	urlGetUser      = urlRoot + "private/users"
 	urlGetGraph     = "https://hanetwi.ddns.net/bikeshare/graph?"
 )
 
@@ -28,60 +32,75 @@ func NewApiClient() ApiClient {
 	return api
 }
 
-//GetPlaces 駐輪場検索
-func (api ApiClient) GetPlaces(option SearchPlacesOption) ([]SpotInfo, error) {
-	url := urlGetPlaces + option.GetQuery()
-	resp, err := api.Client.Get(url)
+//SetCertKey キーを設定
+func (api *ApiClient) SetCertKey(certKey string) {
+	api.CertKey = certKey
+}
+
+//SendGetRequest GETリクエストを送信してレスポンスのバイト配列を得る
+func (api *ApiClient) SendGetRequest(url string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return []SpotInfo{}, err
+		return nil, err
+	}
+	req.Header.Set("cert", api.CertKey)
+	resp, err := api.Client.Do(req)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	byteArray, _ := ioutil.ReadAll(resp.Body)
-	var data JPlacesBody
-	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
-		fmt.Println("JSON Unmarshal error:", err)
+	byteArray, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return byteArray, nil
+}
+
+//GetPlaces 駐輪場検索
+func (api *ApiClient) GetPlaces(option SearchPlacesOption) ([]SpotInfo, error) {
+	url := urlGetPlaces + option.GetQuery()
+	byteArray, err := api.SendGetRequest(url)
+	if err != nil {
 		return []SpotInfo{}, err
 	}
-	return data.GetSpotInfoList(), nil
+	var data static.JPlacesBody
+	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
+		return []SpotInfo{}, err
+	}
+	return GetSpotInfoListByPlaces(data), nil
 }
 
 //GetCounts 台数検索
 func (api ApiClient) GetCounts(option SearchCountsOption) (SpotInfo, error) {
 	url := urlGetCounts + option.GetQuery()
-	resp, err := api.Client.Get(url)
+	byteArray, err := api.SendGetRequest(url)
 	if err != nil {
 		return SpotInfo{}, err
 	}
-	defer resp.Body.Close()
-
-	byteArray, _ := ioutil.ReadAll(resp.Body)
-	var data JCountsBody
+	var data static.JCountsBody
 	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
 		fmt.Println("JSON Unmarshal error:", err)
 		return SpotInfo{}, err
 	}
-	return data.GetSpotInfo(), nil
+	return GetSpotInfoByJCount(data), nil
 }
 
 //GetDistances 近いスポット検索
 func (api ApiClient) GetDistances(option SearchDistanceOption) (DistanceInfo, error) {
 	url := urlGetDistances + option.GetQuery()
-	resp, err := api.Client.Get(url)
+	byteArray, err := api.SendGetRequest(url)
 	if err != nil {
 		return DistanceInfo{}, err
 	}
-	defer resp.Body.Close()
-
-	byteArray, _ := ioutil.ReadAll(resp.Body)
-	var data JDistancesBody
+	var data static.JDistancesBody
 	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
 		fmt.Println("JSON Unmarshal error:", err)
 		return DistanceInfo{}, err
 	}
-	spotinfoList := data.GetSpotInfoList()
+	spotinfoList := GetSpotInfoListByDistance(data)
 	distanceInfo := DistanceInfo{BaseLat: option.Lat, BaseLon: option.Lon}
-	distances := data.GetDistanceList()
+	distances := GetDistanceList(data)
 	for i, item := range spotinfoList {
 		distanceInfo.Spots = append(distanceInfo.Spots, struct {
 			SpotInfo SpotInfo
@@ -93,14 +112,11 @@ func (api ApiClient) GetDistances(option SearchDistanceOption) (DistanceInfo, er
 
 //GetAllSpotNames すべてのスポットの名前だけ検索
 func (api ApiClient) GetAllSpotNames() ([]SpotName, error) {
-	resp, err := api.Client.Get(urlGetAllPlaces)
+	byteArray, err := api.SendGetRequest(urlGetAllPlaces)
 	if err != nil {
 		return []SpotName{}, err
 	}
-	defer resp.Body.Close()
-
-	byteArray, _ := ioutil.ReadAll(resp.Body)
-	var data JAllPlacesBody
+	var data static.JAllPlacesBody
 	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
 		fmt.Println("JSON Unmarshal error:", err)
 		return []SpotName{}, err
@@ -115,22 +131,41 @@ func (api ApiClient) GetAllSpotNames() ([]SpotName, error) {
 
 //GetGraph グラフ検索
 func (api ApiClient) GetGraph(option SearchGraphOption) (GraphInfo, error) {
-	var data JGraphResponse
-	var graph GraphInfo
 	url := urlGetGraph + option.GetQuery()
-	resp, err := api.Client.Get(url)
+	byteArray, err := api.SendGetRequest(url)
 	if err != nil {
-		return graph, err
+		return GraphInfo{}, err
 	}
-	defer resp.Body.Close()
-
-	byteArray, _ := ioutil.ReadAll(resp.Body)
+	var data static.JGraphResponse
 	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
 		fmt.Println("JSON Unmarshal error:", err)
-		return graph, err
+		return GraphInfo{}, err
 	}
-	height, _ := strconv.Atoi(data.Height)
-	width, _ := strconv.Atoi(data.Width)
-	graph = GraphInfo{Title: data.Title, Height: height, Width: width, URL: data.URL}
-	return graph, nil
+	return GetGraphInfoByJGraphResponse(data), nil
+}
+
+//GetUsers ユーザ情報取得
+func (api ApiClient) GetUsers() ([]Users, error) {
+	byteArray, err := api.SendGetRequest(urlGetUser)
+	if err != nil {
+		return nil, err
+	}
+	var data static.JUsers
+	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
+		fmt.Println("JSON Unmarshal error:", err)
+		return nil, err
+	}
+	var users []Users
+	for _, jUser := range data.Users {
+		users = append(users,
+			Users{
+				LineID:    jUser.LineID,
+				SlackID:   jUser.SlackID,
+				Favorites: jUser.Favorites,
+				Histories: jUser.Histories,
+				Notifies:  jUser.Notifies,
+			},
+		)
+	}
+	return users, nil
 }
