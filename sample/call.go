@@ -77,6 +77,20 @@ func CheckStatus() {
 	fmt.Printf("%v\n", status)
 }
 
+//PostUser 千代田区役所
+func PostUser() {
+	var user bikeshareapi.Users
+	user.LineID = "aaaaaaaaaaaaaa"
+	user.Favorites = []string{}
+	user.Notifies = []string{}
+	user.Histories = []string{}
+	users, err := API.UpdateUser(user)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%v\n", users)
+}
+
 func main() {
 	//APIクライアント初期化
 	API = bikeshareapi.NewApiClient()
@@ -89,4 +103,5 @@ func main() {
 	GetGraph()
 	GetUsers()
 	CheckStatus()
+	PostUser()
 }

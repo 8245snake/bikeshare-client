@@ -1,6 +1,7 @@
 package bikeshareapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -24,6 +25,7 @@ const (
 	urlGetAllPlaces = "all_places"
 	urlGetStatus    = "status"
 	urlGetUser      = "private/users"
+	urlPostUser     = "private/user"
 	urlGetGraph     = "https://hanetwi.ddns.net/bikeshare/graph?"
 )
 
@@ -51,6 +53,35 @@ func (api *ApiClient) SendGetRequest(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Set("cert", api.CertKey)
+	resp, err := api.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	byteArray, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	} else if len(byteArray) == 0 {
+		return nil, fmt.Errorf("レスポンスのデータ長が不正です")
+	}
+	return byteArray, nil
+}
+
+//SendPostRequest POSTリクエストを送信してレスポンスのバイト配列を得る
+func (api *ApiClient) SendPostRequest(URL string, payload interface{}) ([]byte, error) {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("error")
+	}
+	req, err := http.NewRequest("POST", URL, bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+	//ヘッダを設定
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("cert", api.CertKey)
 	resp, err := api.Client.Do(req)
 	if err != nil {
@@ -195,4 +226,34 @@ func (api ApiClient) GetStatus() (static.JServiceStatus, error) {
 	}
 
 	return data, nil
+}
+
+//UpdateUser ユーザー更新
+func (api ApiClient) UpdateUser(user Users) ([]Users, error) {
+
+	juser := static.JUser{LineID: user.LineID, SlackID: user.SlackID, Favorites: user.Favorites, Histories: user.Histories, Notifies: user.Notifies}
+
+	url := api.Endpoint + urlPostUser
+	byteArray, err := api.SendPostRequest(url, juser)
+	if err != nil {
+		return nil, err
+	}
+	var data static.JUsers
+	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
+		fmt.Println("JSON Unmarshal error:", err)
+		return nil, err
+	}
+	var users []Users
+	for _, jUser := range data.Users {
+		users = append(users,
+			Users{
+				LineID:    jUser.LineID,
+				SlackID:   jUser.SlackID,
+				Favorites: jUser.Favorites,
+				Histories: jUser.Histories,
+				Notifies:  jUser.Notifies,
+			},
+		)
+	}
+	return users, nil
 }
