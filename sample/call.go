@@ -20,7 +20,7 @@ func GetPlaces() {
 
 //GetCounts 千代田区役所の2020年5月5日の台数を検索
 func GetCounts() {
-	counts, err := API.GetCounts(bikeshareapi.SearchCountsOption{Area: "A1", Spot: "01", Day: "20200505"})
+	counts, err := API.GetCounts(bikeshareapi.SearchCountsOption{Area: "A1", Spot: "01", Day: "20200521"})
 	if err != nil {
 		panic(err)
 	}
@@ -68,13 +68,25 @@ func GetUsers() {
 	fmt.Printf("%v\n", users)
 }
 
+//CheckStatus システム正常性チェック
+func CheckStatus() {
+	status, err := API.GetStatus()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%v\n", status)
+}
+
 func main() {
 	//APIクライアント初期化
 	API = bikeshareapi.NewApiClient()
+	API.SetCertKey("your cert key") //your cert key
+	API.SetEndpoint("http://localhost:5001/")
 	GetPlaces()
 	GetAllSpotNames()
 	GetCounts()
 	GetDistances()
 	GetGraph()
 	GetUsers()
+	CheckStatus()
 }

@@ -11,17 +11,19 @@ import (
 
 //ApiClient クライアント
 type ApiClient struct {
-	Client  *http.Client
-	CertKey string
+	Client   *http.Client
+	CertKey  string
+	Endpoint string
 }
 
 const (
 	urlRoot         = "https://hanetwi.ddns.net/bikeshare/api/v1/"
-	urlGetPlaces    = urlRoot + "places?"
-	urlGetCounts    = urlRoot + "counts?"
-	urlGetDistances = urlRoot + "distances?"
-	urlGetAllPlaces = urlRoot + "all_places"
-	urlGetUser      = urlRoot + "private/users"
+	urlGetPlaces    = "places?"
+	urlGetCounts    = "counts?"
+	urlGetDistances = "distances?"
+	urlGetAllPlaces = "all_places"
+	urlGetStatus    = "status"
+	urlGetUser      = "private/users"
 	urlGetGraph     = "https://hanetwi.ddns.net/bikeshare/graph?"
 )
 
@@ -29,12 +31,18 @@ const (
 func NewApiClient() ApiClient {
 	var api ApiClient
 	api.Client = &http.Client{}
+	api.Endpoint = urlRoot
 	return api
 }
 
 //SetCertKey キーを設定
 func (api *ApiClient) SetCertKey(certKey string) {
 	api.CertKey = certKey
+}
+
+//SetEndpoint エンドポイントを設定（デバッグ用）
+func (api *ApiClient) SetEndpoint(endpoint string) {
+	api.Endpoint = endpoint
 }
 
 //SendGetRequest GETリクエストを送信してレスポンスのバイト配列を得る
@@ -53,13 +61,15 @@ func (api *ApiClient) SendGetRequest(url string) ([]byte, error) {
 	byteArray, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	} else if len(byteArray) == 0 {
+		return nil, fmt.Errorf("レスポンスのデータ長が不正です")
 	}
 	return byteArray, nil
 }
 
 //GetPlaces 駐輪場検索
 func (api *ApiClient) GetPlaces(option SearchPlacesOption) ([]SpotInfo, error) {
-	url := urlGetPlaces + option.GetQuery()
+	url := api.Endpoint + urlGetPlaces + option.GetQuery()
 	byteArray, err := api.SendGetRequest(url)
 	if err != nil {
 		return []SpotInfo{}, err
@@ -73,7 +83,7 @@ func (api *ApiClient) GetPlaces(option SearchPlacesOption) ([]SpotInfo, error) {
 
 //GetCounts 台数検索
 func (api ApiClient) GetCounts(option SearchCountsOption) (SpotInfo, error) {
-	url := urlGetCounts + option.GetQuery()
+	url := api.Endpoint + urlGetCounts + option.GetQuery()
 	byteArray, err := api.SendGetRequest(url)
 	if err != nil {
 		return SpotInfo{}, err
@@ -88,7 +98,7 @@ func (api ApiClient) GetCounts(option SearchCountsOption) (SpotInfo, error) {
 
 //GetDistances 近いスポット検索
 func (api ApiClient) GetDistances(option SearchDistanceOption) (DistanceInfo, error) {
-	url := urlGetDistances + option.GetQuery()
+	url := api.Endpoint + urlGetDistances + option.GetQuery()
 	byteArray, err := api.SendGetRequest(url)
 	if err != nil {
 		return DistanceInfo{}, err
@@ -112,7 +122,7 @@ func (api ApiClient) GetDistances(option SearchDistanceOption) (DistanceInfo, er
 
 //GetAllSpotNames すべてのスポットの名前だけ検索
 func (api ApiClient) GetAllSpotNames() ([]SpotName, error) {
-	byteArray, err := api.SendGetRequest(urlGetAllPlaces)
+	byteArray, err := api.SendGetRequest(api.Endpoint + urlGetAllPlaces)
 	if err != nil {
 		return []SpotName{}, err
 	}
@@ -146,10 +156,11 @@ func (api ApiClient) GetGraph(option SearchGraphOption) (GraphInfo, error) {
 
 //GetUsers ユーザ情報取得
 func (api ApiClient) GetUsers() ([]Users, error) {
-	byteArray, err := api.SendGetRequest(urlGetUser)
+	byteArray, err := api.SendGetRequest(api.Endpoint + urlGetUser)
 	if err != nil {
 		return nil, err
 	}
+
 	var data static.JUsers
 	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
 		fmt.Println("JSON Unmarshal error:", err)
@@ -168,4 +179,20 @@ func (api ApiClient) GetUsers() ([]Users, error) {
 		)
 	}
 	return users, nil
+}
+
+//GetStatus サービス稼働状況取得
+func (api ApiClient) GetStatus() (static.JServiceStatus, error) {
+	var data static.JServiceStatus
+	byteArray, err := api.SendGetRequest(api.Endpoint + urlGetStatus)
+	if err != nil {
+		return data, err
+	}
+
+	if err := json.Unmarshal(([]byte)(byteArray), &data); err != nil {
+		fmt.Println("JSON Unmarshal error:", err)
+		return data, err
+	}
+
+	return data, nil
 }
