@@ -20,7 +20,7 @@ func GetPlaces() {
 
 //GetCounts 千代田区役所の2020年5月5日の台数を検索
 func GetCounts() {
-	counts, err := API.GetCounts(bikeshareapi.SearchCountsOption{Area: "A1", Spot: "01", Day: "20200521"})
+	counts, err := API.GetCounts(bikeshareapi.SearchCountsOption{Area: "A1", Spot: "01", Day: "20200522"})
 	if err != nil {
 		panic(err)
 	}

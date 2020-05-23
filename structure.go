@@ -195,6 +195,9 @@ type ServiceStatus struct {
 //SearchPlacesOption 駐輪場検索
 type SearchPlacesOption struct {
 	Area, Spot, Query string
+	Places            []string
+	Limit             int
+	Sort              string
 }
 
 //GetQuery 検索条件作成
@@ -210,6 +213,18 @@ func (option SearchPlacesOption) GetQuery() string {
 	}
 	if option.Query != "" {
 		param := fmt.Sprintf("q=%s", option.Query)
+		params = append(params, param)
+	}
+	if len(option.Places) > 0 {
+		param := fmt.Sprintf("places=%s", strings.Join(option.Places, ","))
+		params = append(params, param)
+	}
+	if option.Sort != "" {
+		param := fmt.Sprintf("sort=%s", option.Sort)
+		params = append(params, param)
+	}
+	if option.Limit > 0 {
+		param := fmt.Sprintf("limit=%d", option.Limit)
 		params = append(params, param)
 	}
 	return strings.Join(params, `&`)
